@@ -1,0 +1,26 @@
+# Core
+langchain>=0.3.0
+langgraph>=0.2.0
+langchain-google-genai>=2.0.0
+langchain-ollama>=0.2.0
+
+# Memory
+chromadb>=0.5.0
+
+# Voice
+openai-whisper>=20231117
+pyttsx3>=2.90
+SpeechRecognition>=3.10.0
+pyaudio>=0.2.14
+
+# Tools
+duckduckgo-search>=6.0.0
+requests>=2.31.0
+python-dotenv>=1.0.0
+
+# Monitoring
+langsmith>=0.1.0
+
+# Utils
+rich>=13.0.0
+loguru>=0.7.0
