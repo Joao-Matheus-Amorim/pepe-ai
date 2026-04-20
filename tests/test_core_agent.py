@@ -24,18 +24,17 @@ class _AgenteFake:
 
 @patch("core.agent.PepeMemory")
 class AgentCoreTests(unittest.TestCase):
-    def setUp(self):
+    def setUp(self, mock_memory=None):
         # Configuração padrão para o mock do PepeMemory
-        pass
+        if mock_memory is not None:
+            mock_memory.return_value.buscar_fatos.return_value = []
 
     def test_pepe_agent_rejeita_pergunta_vazia(self, mock_memory):
-        mock_memory.return_value.buscar_fatos.return_value = []
         pepe = PepeAgent(agente=_AgenteFake())
         with self.assertRaises(ValueError):
             pepe.perguntar("   ")
 
     def test_pepe_agent_envia_payload_correto(self, mock_memory):
-        mock_memory.return_value.buscar_fatos.return_value = []
         agente = _AgenteFake()
         pepe = PepeAgent(agente=agente, session_id="test-session")
         resposta = pepe.perguntar("Qual seu nome?")
@@ -45,7 +44,6 @@ class AgentCoreTests(unittest.TestCase):
         self.assertEqual("test-session", agente.ultima_config["configurable"]["session_id"])
 
     def test_pepe_agent_invoca_com_session_id_padrao(self, mock_memory):
-        mock_memory.return_value.buscar_fatos.return_value = []
         agente = _AgenteFake()
         pepe = PepeAgent(agente=agente)
 
@@ -57,7 +55,6 @@ class AgentCoreTests(unittest.TestCase):
         self.assertEqual("pepe", agente.ultima_config["configurable"]["session_id"])
 
     def test_pepe_agent_cria_agente_por_padrao(self, mock_memory):
-        mock_memory.return_value.buscar_fatos.return_value = []
         with patch("core.agent.criar_agente", return_value=_AgenteFake()) as mock_criar:
             pepe = PepeAgent()
 
@@ -65,7 +62,6 @@ class AgentCoreTests(unittest.TestCase):
         mock_criar.assert_called_once()
 
     def test_pepe_agent_clima_usa_consulta_dedicada(self, mock_memory):
-        mock_memory.return_value.buscar_fatos.return_value = []
         agente_fake = _AgenteFake()
         pepe = PepeAgent(agente=agente_fake)
 
@@ -76,7 +72,6 @@ class AgentCoreTests(unittest.TestCase):
         self.assertEqual(0, agente_fake.chamadas)
 
     def test_pepe_agent_busca_retorna_resultado_diretamente(self, mock_memory):
-        mock_memory.return_value.buscar_fatos.return_value = []
         agente_fake = _AgenteFake()
         pepe = PepeAgent(agente=agente_fake)
 
@@ -88,7 +83,6 @@ class AgentCoreTests(unittest.TestCase):
 
     @patch("core.agent.consulta_clima")
     def test_pepe_agent_clima_mantem_contexto_com_referencia(self, mock_consulta, mock_memory):
-        mock_memory.return_value.buscar_fatos.return_value = []
         agente_fake = _AgenteFake()
         pepe = PepeAgent(agente=agente_fake)
         mock_consulta.side_effect = [
@@ -107,7 +101,6 @@ class AgentCoreTests(unittest.TestCase):
 
     @patch("core.agent.consulta_clima")
     def test_pepe_agent_clima_aceita_follow_up_local(self, mock_consulta, mock_memory):
-        mock_memory.return_value.buscar_fatos.return_value = []
         agente_fake = _AgenteFake()
         pepe = PepeAgent(agente=agente_fake)
         mock_consulta.side_effect = [
