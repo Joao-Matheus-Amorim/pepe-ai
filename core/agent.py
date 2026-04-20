@@ -1,24 +1,3 @@
-<<<<<<< HEAD
-import re
-from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain_core.runnables.history import RunnableWithMessageHistory
-from langchain_core.chat_history import InMemoryChatMessageHistory
-from core.llm import criar_llm
-from core.tools import ferramenta_busca, consulta_clima, extrair_local_com_llm
-
-
-SYSTEM_PROMPT = """Você é o Pepê, um assistente pessoal inteligente e prestativo.
-Seu nome é Pepê.
-Responda sempre em português brasileiro.
-Nunca diga que é ChatGPT, Claude ou qualquer outro assistente.
-Se apresentar, diga que é o Pepê.
-Seja direto e objetivo nas respostas.
-Nunca invente informações sobre clima, temperatura ou previsão do tempo.
-"""
-
-_store = {}
-
-=======
 """Módulo principal do Agente Pepê.
 
 Este módulo contém a lógica central de processamento de linguagem,
@@ -26,7 +5,7 @@ gerenciamento de intenções e integração com ferramentas do sistema.
 """
 
 import re
-from typing import Dict, Any, Optional, List
+from typing import Dict, Optional
 
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.runnables.history import RunnableWithMessageHistory
@@ -40,14 +19,10 @@ from core.tools_filesystem import ler_arquivo, listar_arquivos
 from core.tools_vision import capturar_e_analisar_tela
 from core.tools_execute import executar_comando
 
-# Constantes de Intenção
->>>>>>> origin/master
 INTENCAO_CLIMA = "clima"
 INTENCAO_WEB = "web"
 INTENCAO_NENHUMA = None
 
-<<<<<<< HEAD
-=======
 # Configurações de Prompt
 SYSTEM_PROMPT = (
     "Você é o Pepê, um assistente pessoal inteligente e prestativo.\n"
@@ -61,28 +36,20 @@ SYSTEM_PROMPT = (
 _store: Dict[str, InMemoryChatMessageHistory] = {}
 
 # Mapeamentos Geográficos e Filtros
->>>>>>> origin/master
 SIGLAS_BR = {
     "ac": "Acre, Brasil", "al": "Alagoas, Brasil", "ap": "Amapá, Brasil",
     "am": "Amazonas, Brasil", "ba": "Bahia, Brasil", "ce": "Ceará, Brasil",
     "df": "Brasília, Brasil", "es": "Espírito Santo, Brasil", "go": "Goiás, Brasil",
     "ma": "Maranhão, Brasil", "mt": "Mato Grosso, Brasil", "ms": "Mato Grosso do Sul, Brasil",
-<<<<<<< HEAD
-    "mg": "Minas Gerais", "pa": "Pará, Brasil",
-    "pb": "Paraíba, Brasil", "pr": "Paraná, Brasil", "pe": "Pernambuco, Brasil",
-    "pi": "Piauí, Brasil", "rj": "Rio de Janeiro, Brasil", "rn": "Rio Grande do Norte, Brasil",
-=======
     "mg": "Minas Gerais", "pa": "Pará, Brasil", "pb": "Paraíba, Brasil",
     "pr": "Paraná, Brasil", "pe": "Pernambuco, Brasil", "pi": "Piauí, Brasil",
     "rj": "Rio de Janeiro, Brasil", "rn": "Rio Grande do Norte, Brasil",
->>>>>>> origin/master
     "rs": "Rio Grande do Sul, Brasil", "ro": "Rondônia, Brasil", "rr": "Roraima, Brasil",
     "sc": "Santa Catarina, Brasil", "sp": "São Paulo, Brasil", "se": "Sergipe, Brasil",
     "to": "Tocantins, Brasil",
 }
 
 PALAVRAS_PROIBIDAS = {
-<<<<<<< HEAD
     "também", "tambem", "agora", "hoje", "amanha", "amanhã",
     "neste", "momento", "atualmente", "currently", "now", "today",
     "tomorrow", "aqui", "ali", "la", "lá", "there", "here",
@@ -91,26 +58,15 @@ PALAVRAS_PROIBIDAS = {
 }
 
 
-def get_session_history(session_id: str):
-=======
-    "também", "tambem", "agora", "hoje", "amanha", "amanhã", "aqui", "ali",
-    "la", "lá", "isso", "este", "esta", "esse", "essa", "nenhum", "tudo",
-}
-
-
 def get_session_history(session_id: str) -> InMemoryChatMessageHistory:
     """Recupera ou cria o histórico de mensagens para uma sessão."""
->>>>>>> origin/master
     if session_id not in _store:
         _store[session_id] = InMemoryChatMessageHistory()
     return _store[session_id]
 
 
 def criar_agente():
-<<<<<<< HEAD
-=======
     """Inicializa o modelo de linguagem e a cadeia de processamento."""
->>>>>>> origin/master
     llm = criar_llm()
     prompt = ChatPromptTemplate.from_messages([
         ("system", SYSTEM_PROMPT),
@@ -126,8 +82,8 @@ def criar_agente():
     )
 
 
-<<<<<<< HEAD
 def invocar_agente(agente, pergunta: str, historico=None) -> str:
+    """Invoca um agente manualmente sem usar o roteador do Pepê."""
     pergunta_limpa = (pergunta or "").strip()
     if not pergunta_limpa:
         raise ValueError("A pergunta não pode estar vazia.")
@@ -147,15 +103,6 @@ def invocar_agente(agente, pergunta: str, historico=None) -> str:
 
 
 class PepeAgent:
-    def __init__(self, agente=None, session_id="pepe"):
-        self.agente = agente or criar_agente()
-        self.session_id = session_id
-        self._ultimo_local: str | None = None
-        self._ultima_intencao: str | None = INTENCAO_NENHUMA
-
-    def perguntar(self, pergunta: str) -> str:
-=======
-class PepeAgent:
     """Classe principal que representa o Agente Pepê e suas capacidades."""
 
     def __init__(self, agente=None, session_id: str = "pepe"):
@@ -168,17 +115,12 @@ class PepeAgent:
 
     def perguntar(self, pergunta: str) -> str:
         """Processa uma pergunta do usuário e decide a melhor ação."""
->>>>>>> origin/master
         pergunta_limpa = (pergunta or "").strip()
         if not pergunta_limpa:
             raise ValueError("A pergunta não pode estar vazia.")
 
         pergunta_lower = pergunta_limpa.lower()
 
-<<<<<<< HEAD
-        # ── 1. Intenção explícita de clima ─────────────────────────────────
-        if self._eh_consulta_clima(pergunta_lower):
-=======
         # 1. Memória de Longo Prazo
         fatos = self.memory.buscar_fatos(pergunta_limpa)
         if fatos:
@@ -186,19 +128,18 @@ class PepeAgent:
             pergunta_limpa = f"{contexto}\n\nPergunta atual: {pergunta_limpa}"
 
         # 2. Clima e Temperatura
-        if self._eh_consulta_clima(pergunta_lower) or (self._ultima_intencao == INTENCAO_CLIMA and self._eh_follow_up_clima(pergunta_lower)):
->>>>>>> origin/master
+        if self._eh_consulta_clima(pergunta_lower) or (
+            self._ultima_intencao == INTENCAO_CLIMA and self._eh_follow_up_clima(pergunta_lower)
+        ):
             local = self._resolver_local(pergunta_limpa, pergunta_lower)
             if local:
                 self._ultimo_local = local
                 self._ultima_intencao = INTENCAO_CLIMA
                 return consulta_clima(local)
-<<<<<<< HEAD
-            else:
-                self._ultima_intencao = INTENCAO_CLIMA
-                return "Em qual cidade você quer saber o clima?"
+            self._ultima_intencao = INTENCAO_CLIMA
+            return "Em qual cidade você quer saber o clima?"
 
-        # ── 2. Nome/local solto após intenção de clima ─────────────────────
+        # 2b. Nome/local solto após intenção de clima
         if self._ultima_intencao == INTENCAO_CLIMA:
             local_solto = self._eh_local_solto(pergunta_limpa, pergunta_lower)
             if local_solto:
@@ -206,27 +147,18 @@ class PepeAgent:
                 self._ultima_intencao = INTENCAO_CLIMA
                 return consulta_clima(local_solto)
 
-        # ── 3. Consulta web ────────────────────────────────────────────────
-        if self._eh_consulta_web(pergunta_lower):
-            self._ultima_intencao = INTENCAO_WEB
-            resultado_busca = ferramenta_busca(pergunta_limpa)
-            if not resultado_busca.lower().startswith("erro"):
-                pergunta_limpa = (
-                    "Use estas informações da web para responder de forma direta e curta:\n"
-                    f"{resultado_busca}\n\nPergunta original: {pergunta_limpa}"
-                )
-
-        # ── 4. LLM ────────────────────────────────────────────────────────
-=======
-            self._ultima_intencao = INTENCAO_CLIMA
-            return "Em qual cidade você quer saber o clima?"
-
         # 3. Pesquisa Web
         gatilhos_web = ["busque", "pesquise", "jogo", "notícia", "quem é", "o que é"]
         if self._eh_consulta_web(pergunta_lower) or any(g in pergunta_lower for g in gatilhos_web):
             logger.info(f"Pesquisa web: {pergunta_limpa}")
             self._ultima_intencao = INTENCAO_WEB
-            return ferramenta_busca(pergunta_limpa)
+            resultado_busca = ferramenta_busca(pergunta_limpa)
+            if resultado_busca.lower().startswith("erro"):
+                return resultado_busca
+            pergunta_limpa = (
+                "Use estas informações da web para responder de forma direta e curta:\n"
+                f"{resultado_busca}\n\nPergunta original: {pergunta_limpa}"
+            )
 
         # 4. Visão Local
         gatilhos_visao = ["veja minha tela", "o que está na tela", "ver tela", "vendo"]
@@ -251,7 +183,6 @@ class PepeAgent:
             return listar_arquivos()
 
         # 7. LLM Geral
->>>>>>> origin/master
         if self._ultima_intencao == INTENCAO_CLIMA:
             self._ultima_intencao = INTENCAO_NENHUMA
 
@@ -259,18 +190,6 @@ class PepeAgent:
             {"input": pergunta_limpa},
             config={"configurable": {"session_id": self.session_id}},
         )
-<<<<<<< HEAD
-        return resposta.content
-
-    def resetar_contexto(self) -> None:
-        if self.session_id in _store:
-            _store[self.session_id] = InMemoryChatMessageHistory()
-        self._ultimo_local = None
-        self._ultima_intencao = None
-
-    def _sanitizar_local(self, local: str) -> str | None:
-=======
-
         # Atualizar memória
         if "lembre-se" in pergunta_lower or "grave isso" in pergunta_lower:
             fato = pergunta_limpa.replace("lembre-se", "").replace("grave isso", "").strip()
@@ -278,9 +197,14 @@ class PepeAgent:
 
         return str(resposta.content)
 
+    def resetar_contexto(self) -> None:
+        if self.session_id in _store:
+            _store[self.session_id] = InMemoryChatMessageHistory()
+        self._ultimo_local = None
+        self._ultima_intencao = None
+
     def _sanitizar_local(self, local: str) -> Optional[str]:
         """Limpa e valida nomes de cidades ou siglas."""
->>>>>>> origin/master
         if not local:
             return None
         limpo = local.strip(" ,.!?").lower()
@@ -288,19 +212,17 @@ class PepeAgent:
             return None
         if limpo in SIGLAS_BR:
             return SIGLAS_BR[limpo]
-<<<<<<< HEAD
-        resultado = local.strip(" ,.!?")
-        return resultado if resultado else None
+        return local.strip(" ,.!?") or None
 
-    def _eh_local_solto(self, pergunta: str, pergunta_lower: str) -> str | None:
-        REFERENCIAS = {"la", "lá", "ali", "there"}
+    def _eh_local_solto(self, pergunta: str, pergunta_lower: str) -> Optional[str]:
+        referencias = {"la", "lá", "ali", "there"}
         palavras = set(re.sub(r"[?.!,]", "", pergunta_lower).split())
-        if palavras & REFERENCIAS and self._ultimo_local:
+        if palavras & referencias and self._ultimo_local:
             return self._ultimo_local
 
         match_cont = re.match(
             r"^e\s+(em|no|na|nos|nas|in|at|de|do|da)\s+(.+)",
-            pergunta_lower
+            pergunta_lower,
         )
         if match_cont:
             local = match_cont.group(2).strip(" ?.!,")
@@ -311,7 +233,7 @@ class PepeAgent:
             r"\b(é|e|está|esta|tem|vai|quer|quero|como|qual|quem|"
             r"is|are|has|have|what|how|who|preciso|pode|consigo|"
             r"nao|não|nunca|sempre|ajuda|ajude|fale|fala|me|meu|minha)\b",
-            pergunta_lower
+            pergunta_lower,
         ))
         if len(palavras_lista) <= 3 and not tem_verbo:
             candidato = pergunta.strip(" ?.!,")
@@ -319,22 +241,6 @@ class PepeAgent:
                 return self._sanitizar_local(candidato)
 
         return None
-
-    def _resolver_local(self, pergunta: str, pergunta_lower: str) -> str | None:
-        REFERENCIAS = {"la", "lá", "ali", "there"}
-        palavras = set(re.sub(r"[?.!,]", "", pergunta_lower).split())
-        if palavras & REFERENCIAS and self._ultimo_local:
-            return self._ultimo_local
-
-        match_cont = re.match(
-            r"^e\s+(em|no|na|nos|nas|in|at|de|do|da)\s+(.+)",
-            pergunta_lower
-        )
-        if match_cont:
-            local = match_cont.group(2).strip(" ?.!,")
-            return self._sanitizar_local(local)
-=======
-        return local.strip(" ,.!?") or None
 
     def _resolver_local(self, pergunta: str, pergunta_lower: str) -> Optional[str]:
         """Identifica a localização geográfica em uma pergunta."""
@@ -346,7 +252,6 @@ class PepeAgent:
         match = re.match(r"^e\s+(em|no|na|nos|nas|in|at|de|do|da)\s+(.+)", pergunta_lower)
         if match:
             return self._sanitizar_local(match.group(2).strip(" ?.!,"))
->>>>>>> origin/master
 
         local_regex = self._extrair_local_regex(pergunta)
         if local_regex:
@@ -361,13 +266,10 @@ class PepeAgent:
                 if sanitizado:
                     return sanitizado
 
-<<<<<<< HEAD
-        if self._ultimo_local:
-            return self._ultimo_local
+        return self._ultimo_local
 
-        return None
-
-    def _extrair_local_regex(self, pergunta: str) -> str | None:
+    def _extrair_local_regex(self, pergunta: str) -> Optional[str]:
+        """Extrai nomes de locais usando padrões de texto."""
         padroes = [
             r"\bclima\s+d[eo]\s+([\w\s\-,]+?)(?:\?|$|\.|hoje|agora|amanhã|amanha)",
             r"\btemperatura\s+(?:em|de|do|da|no|na)\s+([\w\s\-,]+?)(?:\?|$|\.|hoje|agora|amanhã|amanha)",
@@ -378,24 +280,10 @@ class PepeAgent:
             r"\bclima\s+(?:em|no|na|nos|nas)\s+([\w\s\-,]+?)(?:\?|$|\.|hoje|agora)",
             r"\bem\s+([\w][^\s,?!]{1,40})(?:\s*[,?!]|$)",
         ]
-
-=======
-        return self._ultimo_local
-
-    def _extrair_local_regex(self, pergunta: str) -> Optional[str]:
-        """Extrai nomes de locais usando padrões de texto."""
-        padroes = [
-            r"clima\s+d[eo]\s+([\w\s\-,]+?)(?:\?|$|\.|hoje|agora)",
-            r"temperatura\s+(?:em|no|na)\s+([\w\s\-,]+?)(?:\?|$|\.|hoje|agora)",
-            r"tempo\s+em\s+([\w\s\-,]+?)(?:\?|$|\.|hoje|agora)",
-            r"(?:em|no|na)\s+([\w\s\-,]{2,40})(?:\?|$|\.)",
-        ]
->>>>>>> origin/master
         for padrao in padroes:
             match = re.search(padrao, pergunta.strip(), flags=re.IGNORECASE)
             if match:
                 local = match.group(1).strip(" ,.!?")
-<<<<<<< HEAD
                 local = re.sub(
                     r"\b(agora|hoje|amanha|amanhã|now|today|tomorrow|"
                     r"neste momento|atualmente|currently|sudeste|nordeste|"
@@ -407,53 +295,29 @@ class PepeAgent:
 
         return None
 
-    def _eh_consulta_clima(self, pergunta_lower: str) -> bool:
-        palavras_fortes = [
+    def _eh_consulta_clima(self, p_lower: str) -> bool:
+        """Verifica se a pergunta é sobre clima ou tempo."""
+        palavras = [
             "clima", "previsao", "previsão", "temperatura",
             "chuva", "neve", "vento", "umidade",
             "weather", "forecast", "rain", "snow", "humidity",
             "trovoada", "storm", "calor", "heat", "frio",
         ]
-        if any(p in pergunta_lower for p in palavras_fortes):
+        if any(p in p_lower for p in palavras):
             return True
-
-        if "tempo" in pergunta_lower:
-            if re.search(r"\btempo\s+(em|no|na|de|do|da|in|at)\s+\w", pergunta_lower):
-                return True
-
-        if re.match(r"^e\s+(em|no|na|nos|nas|in|at)\s+\w", pergunta_lower):
-            if self._ultimo_local:
-                return True
-
-        if re.search(r"\be\s+(l[aá]|ali|there)\b", pergunta_lower):
+        if "tempo" in p_lower:
+            return re.search(r"\btempo\s+(em|no|na|de|do|da|in|at)\s+\w", p_lower) is not None
+        if re.match(r"^e\s+(em|no|na|nos|nas|in|at)\s+\w", p_lower) and self._ultimo_local:
             return True
+        return re.search(r"\be\s+(l[aá]|ali|there)\b", p_lower) is not None
 
-        return False
-
-    def _eh_consulta_web(self, pergunta_lower: str) -> bool:
+    def _eh_consulta_web(self, p_lower: str) -> bool:
+        """Verifica se a pergunta exige acesso à internet."""
         palavras = [
             "noticia", "notícia", "noticias", "notícias",
             "cotacao", "cotação", "preco", "preço",
             "precos", "preços", "valor", "news", "latest",
         ]
-        return any(p in pergunta_lower for p in palavras)
-=======
-                # Remover palavras de tempo que possam ter sido capturadas
-                local = re.sub(r"\s+(agora|hoje|amanha|now|today).*$", "", local, flags=re.IGNORECASE)
-                if len(local.strip()) >= 2:
-                    return local.strip()
-        return None
-
-    def _eh_consulta_clima(self, p_lower: str) -> bool:
-        """Verifica se a pergunta é sobre clima ou tempo."""
-        palavras = ["clima", "previsao", "temperatura", "chuva", "weather", "forecast"]
-        if any(p in p_lower for p in palavras):
-            return True
-        return "tempo" in p_lower and re.search(r"tempo\s+(em|no|na|de|do|da)", p_lower) is not None
-
-    def _eh_consulta_web(self, p_lower: str) -> bool:
-        """Verifica se a pergunta exige acesso à internet."""
-        palavras = ["noticia", "notícia", "cotacao", "cotação", "preco", "preço", "news"]
         return any(p in p_lower for p in palavras)
 
     def _eh_follow_up_clima(self, p_lower: str) -> bool:
@@ -462,7 +326,4 @@ class PepeAgent:
         palavras = set(re.sub(r"[?.!,]", "", p_lower).split())
         if palavras & referencias:
             return True
-        if re.match(r"^e\s+(em|no|na|nos|nas|in|at|de|do|da)\s+", p_lower):
-            return True
-        return False
->>>>>>> origin/master
+        return re.match(r"^e\s+(em|no|na|nos|nas|in|at|de|do|da)\s+", p_lower) is not None
