@@ -1,182 +1,102 @@
-# 🤖 Pepê — Personal AI Agent
+# Pepe AI
 
-> *"Não é um chatbot. É um parceiro inteligente que aprende, evolui e trabalha por você."*
+Agente pessoal em Python com foco em conversa contextual, LLM local via Ollama e ferramentas de busca web.
 
-[![Python](https://img.shields.io/badge/Python-3.11+-blue?logo=python)](https://python.org)
-[![LangGraph](https://img.shields.io/badge/LangGraph-latest-green)](https://github.com/langchain-ai/langgraph)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Status](https://img.shields.io/badge/Status-Em%20Construção-orange)]()
+## Status atual
 
----
+Este repositório esta em fase de nucleo funcional.
 
-## 🎯 Propósito
+Ja implementado:
+- Chat em terminal com contexto por sessao
+- Integracao com LLM local via Ollama
+- Roteamento simples para consultas de clima e busca web
+- Suite de testes unitarios para nucleo de agente e LLM
 
-**Pepê** é um agente de IA pessoal, autônomo e evolutivo — criado para ser o assistente definitivo do seu criador. Diferente de assistentes comuns, Pepê:
+Planejado (nao implementado ainda):
+- Memoria persistente de longo prazo (vetorial)
+- Voz (entrada e saida)
+- Multiagentes
+- Integracoes externas (email, WhatsApp, calendario)
 
-- 🧠 **Aprende sozinho** — avalia as próprias respostas e melhora continuamente
-- 💾 **Lembra de tudo** — memória de longo prazo persistente entre sessões
-- 🗣️ **Fala e ouve** — interface por voz completa, sem depender de nuvem
-- ⚙️ **Age no mundo real** — executa tarefas, pesquisa, agenda, envia mensagens
-- 🤝 **Multiagente** — subagentes especializados colaborando internamente
-- 💰 **100% gratuito** — stack open-source, sem dependências pagas
+## Arquitetura atual
 
----
+Fluxo principal:
+1. Usuario envia pergunta pelo terminal
+2. `PepeAgent` classifica intencao (clima, busca web, resposta geral)
+3. Para perguntas gerais, o agente usa cadeia LangChain com historico de sessao
+4. Para clima/busca, usa ferramentas em `core/tools.py`
 
-## 🗺️ Roadmap
+Arquivos principais:
+- `main.py`: entrada da aplicacao
+- `core/agent.py`: logica do agente e historico
+- `core/llm.py`: selecao de provider e criacao do cliente de LLM
+- `core/tools.py`: ferramentas de busca e clima
+- `tests/`: testes unitarios
 
-| Fase | Nome | Status | Descrição |
-|------|------|--------|-----------|
-| **1** | Núcleo | 🔄 Em andamento | Agente base com voz, LLM e ferramentas |
-| **2** | Memória | ⏳ Planejado | Memória vetorial persistente e perfil do usuário |
-| **3** | Autonomia | ⏳ Planejado | Loop de auto-avaliação e planejamento complexo |
-| **4** | Personalidade | ⏳ Planejado | Fine-tuning com estilo e dados pessoais |
-| **5** | Multiagente | ⏳ Planejado | Subagentes: Pesquisador, Programador, Planejador, Crítico |
-| **6** | Integração | ⏳ Planejado | WhatsApp, e-mail, calendário, casa inteligente |
+## Requisitos
 
----
-
-## 🛠️ Stack Tecnológica
-
-| Camada | Tecnologia | Descrição |
-|--------|-----------|-----------|
-| **Linguagem** | Python 3.11+ | Base do projeto |
-| **Cérebro (LLM)** | Gemini 2.0 Flash + Ollama | LLM gratuito local e em nuvem |
-| **Modelo local** | Llama 3 / Mistral | Roda 100% offline via Ollama |
-| **Orquestração** | LangGraph | Controle de fluxo e estados do agente |
-| **Memória vetorial** | ChromaDB | Banco de memória local e gratuito |
-| **Fine-tuning** | LoRA + Hugging Face + Colab | Treinamento gratuito na nuvem |
-| **Voz entrada** | Whisper (OpenAI OSS) | Reconhecimento de voz offline |
-| **Voz saída** | pyttsx3 / Coqui TTS | Síntese de voz offline |
-| **Busca web** | DuckDuckGo API | Pesquisa sem custo |
-| **Automações** | n8n self-hosted | Integrações e workflows |
-| **Monitoramento** | LangSmith (free tier) | Observabilidade do agente |
-
----
-
-## 📁 Estrutura do Projeto
-
-```
-pepe-ai/
-│
-├── core/               # Núcleo do agente (LangGraph)
-│   ├── agent.py        # Agente principal
-│   ├── graph.py        # Grafo de estados e fluxo
-│   └── prompts.py      # Prompts e personalidade do Pepê
-│
-├── memory/             # Sistema de memória
-│   ├── short_term.py   # Memória de sessão
-│   ├── long_term.py    # Memória vetorial persistente (ChromaDB)
-│   └── profile.py      # Perfil e preferências do usuário
-│
-├── tools/              # Ferramentas disponíveis ao agente
-│   ├── search.py       # Busca na web (DuckDuckGo)
-│   ├── calendar.py     # Integração com agenda
-│   ├── code.py         # Execução de código
-│   └── files.py        # Leitura e escrita de arquivos
-│
-├── voice/              # Interface de voz
-│   ├── listener.py     # Entrada de voz (Whisper)
-│   └── speaker.py      # Saída de voz (pyttsx3/Coqui)
-│
-├── agents/             # Subagentes especializados (Fase 5)
-│   ├── researcher.py   # Agente pesquisador
-│   ├── coder.py        # Agente programador
-│   ├── planner.py      # Agente planejador
-│   └── critic.py       # Agente crítico/avaliador
-│
-├── training/           # Fine-tuning e treinamento
-│   ├── datasets/       # Dados de treinamento
-│   ├── finetune.py     # Script de fine-tuning com LoRA
-│   └── evaluate.py     # Avaliação do modelo treinado
-│
-├── integrations/       # Integrações externas (Fase 6)
-│   ├── whatsapp.py
-│   ├── email.py
-│   └── n8n/
-│
-├── docs/               # Documentação detalhada
-│   ├── setup.md        # Guia de instalação
-│   ├── architecture.md # Arquitetura do sistema
-│   └── phases/         # Documentação por fase
-│
-├── tests/              # Testes automatizados
-├── .env.example        # Variáveis de ambiente (modelo)
-├── requirements.txt    # Dependências Python
-└── README.md
-```
-
----
-
-## 🚀 Início Rápido
-
-### Pré-requisitos
 - Python 3.11+
-- Git
-- [Ollama](https://ollama.com) (para LLM local)
-- Conta no [Google AI Studio](https://aistudio.google.com) (API gratuita)
+- Dependencias em `requirements.txt`
+- Ollama local ativo
 
-### Instalação
+## Configuracao
+
+1. Crie o ambiente virtual:
 
 ```bash
-# 1. Clone o repositório
-git clone https://github.com/Joao-Matheus-Amorim/pepe-ai.git
-cd pepe-ai
-
-# 2. Crie o ambiente virtual
 python -m venv venv
-source venv/bin/activate  # Linux/Mac
-venv\Scripts\activate     # Windows
+venv\Scripts\activate
+```
 
-# 3. Instale as dependências
+2. Instale dependencias:
+
+```bash
 pip install -r requirements.txt
+```
 
-# 4. Configure as variáveis de ambiente
-cp .env.example .env
-# Edite o .env com sua chave da API do Google AI Studio
+3. Configure variaveis:
 
-# 5. Baixe o modelo local
-ollama pull llama3
+```bash
+copy .env.example .env
+```
 
-# 6. Inicie o Pepê
+4. Ajuste o `.env`:
+
+Configuracao Ollama:
+```env
+PEPE_MODEL_PROVIDER=ollama
+PEPE_OLLAMA_MODEL=llama3.1
+```
+
+## Execucao
+
+```bash
 python main.py
 ```
 
----
+## Testes
 
-## 🧠 Como o Pepê Aprende
-
-```
-[ Você fala/escreve ]
-        ↓
-  [ Pepê recebe a tarefa ]
-        ↓
-  [ Consulta memória de longo prazo ]
-        ↓
-  [ Planeja a ação ]
-        ↓
-  [ Executa com ferramentas ]
-        ↓
-  [ Auto-avalia o resultado ]
-        ↓
-  ¿Satisfatório? → NÃO → Reescreve estratégia → Repete
-        ↓ SIM
-  [ Responde + Salva aprendizado na memória ]
+```bash
+python -m unittest discover -s tests -v
 ```
 
----
+## Estrutura do repositorio
 
-## 📄 Licença
+```text
+pepe-ai/
+  core/
+    agent.py
+    llm.py
+    tools.py
+  tests/
+    test_core_agent.py
+    test_core_llm.py
+  docs/
+  main.py
+  requirements.txt
+  .env.example
+```
 
-Este projeto está sob a licença MIT. Veja o arquivo [LICENSE](LICENSE) para detalhes.
+## Licenca
 
----
-
-## 👤 Autor
-
-**João Matheus Amorim**
-- GitHub: [@Joao-Matheus-Amorim](https://github.com/Joao-Matheus-Amorim)
-- Email: joaomatheus.lab@gmail.com
-
----
-
-> *"Este é um projeto de vida. Cada commit é um passo em direção a um futuro onde a tecnologia trabalha para as pessoas, não o contrário."*
+MIT

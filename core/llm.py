@@ -1,26 +1,39 @@
 import os
 from dotenv import load_dotenv
-from langchain_google_genai import ChatGoogleGenerativeAI
 
 load_dotenv()
 
+SUPPORTED_PROVIDERS = {"ollama"}
 
-def _obter_google_api_key() -> str:
-    api_key = os.getenv("GOOGLE_API_KEY", "").strip()
-    if not api_key:
+
+def _obter_provider(provider: str | None = None) -> str:
+    valor = (provider or os.getenv("PEPE_MODEL_PROVIDER", "ollama")).strip().lower()
+    if valor not in SUPPORTED_PROVIDERS:
+        providers = ", ".join(sorted(SUPPORTED_PROVIDERS))
         raise ValueError(
-            "GOOGLE_API_KEY não encontrada. Configure o arquivo .env antes de iniciar o Pepê."
+            f"PEPE_MODEL_PROVIDER invalido: '{valor}'."
+            f" Neste projeto o unico provider suportado e: {providers}."
         )
-    return api_key
+    return valor
 
 
-def criar_llm(modelo: str | None = None, temperatura: float = 0.7):
-    modelo_configurado = (modelo or os.getenv("PEPE_GEMINI_MODEL", "gemini-2.5-flash")).strip()
-    return ChatGoogleGenerativeAI(
-        model=modelo_configurado,
-        temperature=temperatura,
-        google_api_key=_obter_google_api_key(),
-    )
+def _criar_cliente_ollama(modelo: str, temperatura: float):
+    try:
+        from langchain_ollama import ChatOllama
+    except ImportError as erro:
+        raise RuntimeError(
+            "Dependência ausente para Ollama. Instale 'langchain-ollama'."
+        ) from erro
+
+    return ChatOllama(model=modelo, temperature=temperatura)
+
+
+def criar_llm(provider: str | None = None, modelo: str | None = None, temperatura: float = 0.4):
+    _obter_provider(provider)
+
+    modelo_ollama = (modelo or os.getenv("PEPE_OLLAMA_MODEL", "llama3.1")).strip()
+    return _criar_cliente_ollama(modelo_ollama, temperatura)
+
 
 if __name__ == "__main__":
     llm = criar_llm()

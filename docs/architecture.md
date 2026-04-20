@@ -15,9 +15,9 @@
 └───────┬─────────┬─────────┬─────────┬────────┘
          │         │         │         │
          ▼         ▼         ▼         ▼
-      [LLM]   [Memória] [Ferramentas] [Subagentes]
-   Gemini/    ChromaDB   Busca/Agenda  Pesquisador
-    Ollama    Vetorial   Código/Files  Programador
+                  [LLM]   [Memória] [Ferramentas] [Subagentes]
+            Ollama    ChromaDB   Busca/Agenda  Pesquisador
+            Local     Vetorial   Código/Files  Programador
                                        Planejador
                                          Crítico
 ```
