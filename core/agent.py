@@ -102,7 +102,7 @@ def invocar_agente(agente, pergunta: str, historico=None) -> str:
     return resposta.content
 
 
-from core.graph import pepe_graph
+from core.graph import criar_grafo
 from langchain_core.messages import HumanMessage
 
 class PepeAgent:
@@ -115,6 +115,7 @@ class PepeAgent:
         self.memory = PepeMemory()
         self._ultimo_local: Optional[str] = None
         self._ultima_intencao: Optional[str] = INTENCAO_NENHUMA
+        self.pepe_graph = criar_grafo()
 
     def perguntar(self, pergunta: str) -> str:
         """Processa uma pergunta do usuário usando o grafo do LangGraph."""
@@ -137,7 +138,7 @@ class PepeAgent:
 
         # 3. Executar o Grafo
         config = {"configurable": {"thread_id": self.session_id}}
-        resultado = pepe_graph.invoke({"messages": messages}, config=config)
+        resultado = self.pepe_graph.invoke({"messages": messages}, config=config)
 
         # 4. Atualizar Histórico de Sessão
         # O LangGraph retorna o estado final com todas as novas mensagens
