@@ -1,8 +1,6 @@
 import unittest
 from unittest.mock import patch
 
-from langchain_core.messages import AIMessage, HumanMessage
-
 from core.agent import PepeAgent, invocar_agente
 
 
@@ -15,10 +13,12 @@ class _AgenteFake:
     def __init__(self):
         self.ultima_entrada = None
         self.chamadas = 0
+        self.ultima_config = None
 
-    def invoke(self, entrada):
+    def invoke(self, entrada, config=None):
         self.chamadas += 1
         self.ultima_entrada = entrada
+        self.ultima_config = config
         return _Resposta(f"resposta-{self.chamadas}")
 
 
@@ -29,15 +29,13 @@ class AgentCoreTests(unittest.TestCase):
 
     def test_invocar_agente_envia_payload_correto(self):
         agente = _AgenteFake()
-        historico = [HumanMessage(content="Oi")]
-
-        resposta = invocar_agente(agente, "Qual seu nome?", historico)
+        resposta = invocar_agente(agente, "Qual seu nome?")
 
         self.assertEqual("resposta-1", resposta)
         self.assertEqual("Qual seu nome?", agente.ultima_entrada["input"])
-        self.assertIs(historico, agente.ultima_entrada["historico"])
+        self.assertEqual("manual-invoke", agente.ultima_config["configurable"]["session_id"])
 
-    def test_pepe_agent_mantem_historico(self):
+    def test_pepe_agent_invoca_com_session_id(self):
         agente = PepeAgent(agente=_AgenteFake())
 
         primeira = agente.perguntar("Olá")
@@ -45,9 +43,7 @@ class AgentCoreTests(unittest.TestCase):
 
         self.assertEqual("resposta-1", primeira)
         self.assertEqual("resposta-2", segunda)
-        self.assertEqual(4, len(agente.historico))
-        self.assertIsInstance(agente.historico[0], HumanMessage)
-        self.assertIsInstance(agente.historico[1], AIMessage)
+        self.assertEqual("pepe", agente.agente.ultima_config["configurable"]["session_id"])
 
     def test_pepe_agent_cria_agente_por_padrao(self):
         with patch("core.agent.criar_agente", return_value=_AgenteFake()) as mock_criar:
@@ -55,6 +51,27 @@ class AgentCoreTests(unittest.TestCase):
 
         self.assertIsNotNone(pepe)
         mock_criar.assert_called_once()
+
+    def test_pepe_agent_clima_usa_consulta_dedicada(self):
+        agente_fake = _AgenteFake()
+        pepe = PepeAgent(agente=agente_fake)
+
+        with patch("core.agent.consulta_clima", return_value="Em Magé RJ, a temperatura atual em torno de 25°C."):
+            resposta = pepe.perguntar("Qual o clima em Magé?")
+
+        self.assertIn("Magé", resposta)
+        self.assertEqual(0, agente_fake.chamadas)
+
+    def test_pepe_agent_busca_enriquece_prompt(self):
+        agente_fake = _AgenteFake()
+        pepe = PepeAgent(agente=agente_fake)
+
+        with patch("core.agent.ferramenta_busca", return_value="Fonte X: conteudo"):
+            pepe.perguntar("Quais as notícias de hoje?")
+
+        entrada = agente_fake.ultima_entrada["input"]
+        self.assertIn("informações da web", entrada)
+        self.assertIn("Fonte X", entrada)
 
 
 if __name__ == "__main__":
