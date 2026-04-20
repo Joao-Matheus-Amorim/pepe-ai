@@ -73,6 +73,40 @@ class AgentCoreTests(unittest.TestCase):
         self.assertIn("informações da web", entrada)
         self.assertIn("Fonte X", entrada)
 
+    @patch("core.agent.consulta_clima")
+    def test_pepe_agent_clima_mantem_contexto_com_referencia(self, mock_consulta):
+        agente_fake = _AgenteFake()
+        pepe = PepeAgent(agente=agente_fake)
+        mock_consulta.side_effect = [
+            "Em Niterói, Rio de Janeiro, agora: 24°C.",
+            "Em Niterói, Rio de Janeiro, agora: 24°C.",
+        ]
+
+        primeira = pepe.perguntar("clima em Niteroi RJ")
+        segunda = pepe.perguntar("e lá?")
+
+        self.assertIn("Niterói", primeira)
+        self.assertIn("Niterói", segunda)
+        self.assertEqual(2, mock_consulta.call_count)
+        self.assertEqual("Niteroi RJ", mock_consulta.call_args_list[0].args[0])
+        self.assertEqual("Niteroi RJ", mock_consulta.call_args_list[1].args[0])
+
+    @patch("core.agent.consulta_clima")
+    def test_pepe_agent_clima_aceita_follow_up_local(self, mock_consulta):
+        agente_fake = _AgenteFake()
+        pepe = PepeAgent(agente=agente_fake)
+        mock_consulta.side_effect = [
+            "Em Magé, Rio de Janeiro, agora: 23°C.",
+            "Em Niterói, Rio de Janeiro, agora: 24°C.",
+        ]
+
+        pepe.perguntar("clima em Mage RJ")
+        resposta = pepe.perguntar("e em Niteroi?")
+
+        self.assertIn("Niterói", resposta)
+        self.assertEqual("Mage RJ", mock_consulta.call_args_list[0].args[0])
+        self.assertEqual("niteroi", mock_consulta.call_args_list[1].args[0].lower())
+
 
 if __name__ == "__main__":
     unittest.main()

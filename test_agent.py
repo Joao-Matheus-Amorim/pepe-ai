@@ -1,5 +1,6 @@
 from core.agent import PepeAgent
 
+
 def main():
     pepe = PepeAgent()
     print("Pepê pronto. Digite 'sair' para encerrar.\n")
@@ -14,6 +15,7 @@ def main():
             print(f"Pepê: {resposta}\n")
         except Exception as e:
             print(f"Erro: {e}\n")
+
 
 if __name__ == "__main__":
     main()
