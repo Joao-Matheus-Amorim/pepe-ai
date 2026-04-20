@@ -23,3 +23,7 @@ langsmith>=0.1.0
 # Utils
 rich>=13.0.0
 loguru>=0.7.0
+<<<<<<< HEAD
+=======
+langchain-openai>=0.2.0
+>>>>>>> origin/master
