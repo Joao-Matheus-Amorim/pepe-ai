@@ -2,14 +2,12 @@ import os
 from typing import Annotated, TypedDict, Union, List, Optional
 from enum import Enum
 
-from langchain_core.messages import BaseMessage, HumanMessage, AIMessage
+from langchain_core.messages import BaseMessage, HumanMessage, AIMessage, SystemMessage
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.tools import tool
-from langchain_core.output_parsers import JsonOutputParser
 from langgraph.graph import StateGraph, END
 from langgraph.graph.message import add_messages
 from langgraph.prebuilt import ToolNode, tools_condition
-from pydantic import BaseModel
 
 from core.llm import criar_llm
 from core.tools import ferramenta_busca, consulta_clima
@@ -29,6 +27,14 @@ class AgentState(TypedDict):
     messages: Annotated[List[BaseMessage], add_messages]
     intent: Optional[Intent]
     context: dict
+
+
+AUTO_EVALUATION_PROMPT = (
+    "Você é o revisor de respostas do Pepê.\n"
+    "Avalie a resposta atual com foco em: utilidade, clareza, objetividade e aderência à pergunta.\n"
+    "Se a resposta já estiver boa, retorne exatamente <ok>.\n"
+    "Se a resposta estiver ruim, genérica, incompleta, contraditória ou excessivamente longa, retorne somente uma versão final reescrita, em português brasileiro, sem explicações extras."
+)
 
 @tool
 def search_tool(query: str):
@@ -59,6 +65,41 @@ def read_file_tool(path: str):
 def list_files_tool():
     """Lista arquivos do projeto."""
     return listar_arquivos()
+
+
+def _texto_da_resposta(resposta) -> str:
+    if hasattr(resposta, "content"):
+        return str(resposta.content).strip()
+    return str(resposta).strip()
+
+
+def revisar_resposta(llm, prompt_base: str, pergunta: str, resposta: str) -> str:
+    """Executa uma autoavaliação e retorna a resposta original ou uma versão melhorada."""
+    resposta_limpa = (resposta or "").strip()
+    if not resposta_limpa:
+        return resposta_limpa
+
+    mensagens = [
+        SystemMessage(content=f"{prompt_base}\n\n{AUTO_EVALUATION_PROMPT}"),
+        HumanMessage(
+            content=(
+                f"Pergunta do usuário:\n{pergunta}\n\n"
+                f"Resposta atual:\n{resposta_limpa}"
+            )
+        ),
+    ]
+
+    try:
+        revisao = llm.invoke(mensagens)
+        texto_revisado = _texto_da_resposta(revisao)
+    except Exception:
+        return resposta_limpa
+
+    if not texto_revisado or texto_revisado.lower() == "<ok>":
+        return resposta_limpa
+    if texto_revisado.lower().startswith("<ok>"):
+        return resposta_limpa
+    return texto_revisado
 
 SYSTEM_PROMPT = """Você é o Pepê, um assistente pessoal inteligente e prestativo.
 Responda sempre em português brasileiro de forma direta e objetiva."""
@@ -113,7 +154,9 @@ Responda apenas com uma das opções: clima, web, vision, files, terminal ou gen
         ])
         chain = prompt | llm
         response = chain.invoke({"messages": state["messages"]})
-        return {"messages": [response]}
+        pergunta = state["messages"][-1].content if state["messages"] else ""
+        resposta_final = revisar_resposta(llm, prompt_base, pergunta, _texto_da_resposta(response))
+        return {"messages": [AIMessage(content=resposta_final)]}
 
     workflow = StateGraph(AgentState)
 
