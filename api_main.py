@@ -4,6 +4,7 @@ API REST para expor o agente.
 import os
 from typing import Optional
 from fastapi import FastAPI, HTTPException, Depends, Header
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from core.agent import PepeAgent
@@ -11,6 +12,14 @@ from core.agent import PepeAgent
 
 app = FastAPI(title="Pepe AI", version="1.0.0")
 _agents = {}
+
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Autenticação
 PEPE_API_KEY = os.getenv("PEPE_API_KEY", "pepe-default-key")
