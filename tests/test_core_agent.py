@@ -52,6 +52,25 @@ class _ClientFake:
         return _CollectionFake()
 
 
+class _PerfilFake:
+    def resumo_para_prompt(self):
+        return "Seu usuário é João Matheus, 29 anos."
+
+
+class _MemoriaFakeBase:
+    def __init__(self):
+        self.profile = _PerfilFake()
+
+    def registrar_perfil(self, texto):
+        return False
+
+    def buscar_fatos(self, consulta, n_resultados=3):
+        return []
+
+    def resumir_perfil(self):
+        return ""
+
+
 class AgentCoreTests(unittest.TestCase):
     def test_invocar_agente_rejeita_pergunta_vazia(self):
         with self.assertRaises(ValueError):
@@ -66,14 +85,17 @@ class AgentCoreTests(unittest.TestCase):
         self.assertEqual("manual-invoke", agente.ultima_config["configurable"]["session_id"])
 
     def test_pepe_agent_invoca_com_session_id(self):
-        agente = PepeAgent(agente=_AgenteFake())
+        grafo_fake = _GrafoFake()
+        with patch("core.agent.criar_grafo", return_value=grafo_fake), patch(
+            "core.agent.PepeMemory", return_value=_MemoriaFakeBase()
+        ):
+            agente = PepeAgent(agente=_AgenteFake())
+            primeira = agente.perguntar("Olá")
+            segunda = agente.perguntar("Tudo bem?")
 
-        primeira = agente.perguntar("Olá")
-        segunda = agente.perguntar("Tudo bem?")
-
-        self.assertEqual("resposta-1", primeira)
-        self.assertEqual("resposta-2", segunda)
-        self.assertEqual("pepe", agente.agente.ultima_config["configurable"]["session_id"])
+        self.assertEqual("resposta-fake", primeira)
+        self.assertEqual("resposta-fake", segunda)
+        self.assertEqual("pepe", grafo_fake.calls[0][1]["configurable"]["thread_id"])
 
     def test_pepe_agent_cria_agente_por_padrao(self):
         with patch("core.agent.criar_agente", return_value=_AgenteFake()) as mock_criar:
@@ -83,30 +105,32 @@ class AgentCoreTests(unittest.TestCase):
         mock_criar.assert_called_once()
 
     def test_pepe_agent_clima_usa_consulta_dedicada(self):
-        agente_fake = _AgenteFake()
-        pepe = PepeAgent(agente=agente_fake)
-
-        with patch("core.agent.consulta_clima", return_value="Em Magé RJ, a temperatura atual em torno de 25°C."):
+        grafo_fake = _GrafoFake()
+        with patch("core.agent.criar_grafo", return_value=grafo_fake), patch(
+            "core.agent.PepeMemory", return_value=_MemoriaFakeBase()
+        ):
+            pepe = PepeAgent(agente=_AgenteFake())
             resposta = pepe.perguntar("Qual o clima em Magé?")
 
-        self.assertIn("Magé", resposta)
-        self.assertEqual(0, agente_fake.chamadas)
+        self.assertEqual("resposta-fake", resposta)
+        self.assertEqual(1, len(grafo_fake.calls))
 
     def test_pepe_agent_busca_enriquece_prompt(self):
-        agente_fake = _AgenteFake()
-        pepe = PepeAgent(agente=agente_fake)
+        grafo_fake = _GrafoFake()
+        with patch("core.agent.criar_grafo", return_value=grafo_fake), patch(
+            "core.agent.PepeMemory", return_value=_MemoriaFakeBase()
+        ), patch("core.agent.ferramenta_busca", return_value="Fonte X: conteudo") as mock_busca:
+            resposta = PepeAgent(agente=_AgenteFake()).perguntar("Quais as notícias de hoje?")
 
-        with patch("core.agent.ferramenta_busca", return_value="Fonte X: conteudo"):
-            pepe.perguntar("Quais as notícias de hoje?")
-
-        entrada = agente_fake.ultima_entrada["input"]
-        self.assertIn("informações da web", entrada)
-        self.assertIn("Fonte X", entrada)
+        self.assertEqual("Fonte X: conteudo", resposta)
+        mock_busca.assert_called_once_with("Quais as notícias de hoje?")
+        self.assertEqual(0, len(grafo_fake.calls))
 
     def test_pepe_agent_inclui_perfil_no_contexto(self):
         class _MemoriaFake:
             def __init__(self):
                 self.perguntas = []
+                self.profile = _PerfilFake()
 
             def registrar_perfil(self, texto):
                 self.perguntas.append(texto)
@@ -157,6 +181,15 @@ class AgentCoreTests(unittest.TestCase):
         class _MemoriaFake:
             def __init__(self):
                 self.profile = object()
+
+            def registrar_perfil(self, texto):
+                return False
+
+            def buscar_fatos(self, consulta, n_resultados=3):
+                return []
+
+            def resumir_perfil(self):
+                return ""
 
         with patch("core.agent.PepeMemory", return_value=_MemoriaFake()) as mock_memoria:
             pepe = PepeAgent()
@@ -215,39 +248,34 @@ class AgentCoreTests(unittest.TestCase):
         self.assertIn("Hábitos:", resumo)
         self.assertIn("Projetos ativos:", resumo)
 
-    @patch("core.agent.consulta_clima")
-    def test_pepe_agent_clima_mantem_contexto_com_referencia(self, mock_consulta):
-        agente_fake = _AgenteFake()
-        pepe = PepeAgent(agente=agente_fake)
-        mock_consulta.side_effect = [
-            "Em Niterói, Rio de Janeiro, agora: 24°C.",
-            "Em Niterói, Rio de Janeiro, agora: 24°C.",
-        ]
+    def test_pepe_agent_clima_mantem_contexto_com_referencia(self):
+        grafo_fake = _GrafoFake()
+        with patch("core.agent.criar_grafo", return_value=grafo_fake), patch(
+            "core.agent.PepeMemory", return_value=_MemoriaFakeBase()
+        ):
+            pepe = PepeAgent(agente=_AgenteFake())
+            primeira = pepe.perguntar("clima em Niteroi RJ")
+            segunda = pepe.perguntar("e lá?")
 
-        primeira = pepe.perguntar("clima em Niteroi RJ")
-        segunda = pepe.perguntar("e lá?")
+        self.assertEqual("resposta-fake", primeira)
+        self.assertEqual("resposta-fake", segunda)
+        self.assertEqual(2, len(grafo_fake.calls))
+        self.assertIn("clima em Niteroi RJ", grafo_fake.calls[0][0]["messages"][-1].content)
+        self.assertIn("e lá?", grafo_fake.calls[1][0]["messages"][-1].content)
 
-        self.assertIn("Niterói", primeira)
-        self.assertIn("Niterói", segunda)
-        self.assertEqual(2, mock_consulta.call_count)
-        self.assertEqual("Niteroi RJ", mock_consulta.call_args_list[0].args[0])
-        self.assertEqual("Niteroi RJ", mock_consulta.call_args_list[1].args[0])
+    def test_pepe_agent_clima_aceita_follow_up_local(self):
+        grafo_fake = _GrafoFake()
+        with patch("core.agent.criar_grafo", return_value=grafo_fake), patch(
+            "core.agent.PepeMemory", return_value=_MemoriaFakeBase()
+        ):
+            pepe = PepeAgent(agente=_AgenteFake())
+            pepe.perguntar("clima em Mage RJ")
+            resposta = pepe.perguntar("e em Niteroi?")
 
-    @patch("core.agent.consulta_clima")
-    def test_pepe_agent_clima_aceita_follow_up_local(self, mock_consulta):
-        agente_fake = _AgenteFake()
-        pepe = PepeAgent(agente=agente_fake)
-        mock_consulta.side_effect = [
-            "Em Magé, Rio de Janeiro, agora: 23°C.",
-            "Em Niterói, Rio de Janeiro, agora: 24°C.",
-        ]
-
-        pepe.perguntar("clima em Mage RJ")
-        resposta = pepe.perguntar("e em Niteroi?")
-
-        self.assertIn("Niterói", resposta)
-        self.assertEqual("Mage RJ", mock_consulta.call_args_list[0].args[0])
-        self.assertEqual("niteroi", mock_consulta.call_args_list[1].args[0].lower())
+        self.assertEqual("resposta-fake", resposta)
+        self.assertEqual(2, len(grafo_fake.calls))
+        self.assertIn("clima em Mage RJ", grafo_fake.calls[0][0]["messages"][-1].content)
+        self.assertIn("e em Niteroi?", grafo_fake.calls[1][0]["messages"][-1].content)
 
 
 if __name__ == "__main__":

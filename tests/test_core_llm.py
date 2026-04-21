@@ -38,7 +38,7 @@ class LlmCoreTests(unittest.TestCase):
         with patch.dict(os.environ, {"PEPE_MODEL_PROVIDER": "anthropic", "ANTHROPIC_API_KEY": "test-key"}, clear=True):
             criar_llm()
 
-        mock_criar_cliente.assert_called_once_with("claude-opus-4-5", 0.4)
+        mock_criar_cliente.assert_called_once_with("claude-sonnet-4-20250514", 0.4)
 
     @patch("core.llm._criar_cliente_anthropic")
     def test_criar_llm_claude_alias_aponta_para_anthropic(self, mock_criar_cliente):
