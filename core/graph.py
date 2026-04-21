@@ -63,15 +63,21 @@ def list_files_tool():
 SYSTEM_PROMPT = """Você é o Pepê, um assistente pessoal inteligente e prestativo.
 Responda sempre em português brasileiro de forma direta e objetiva."""
 
-def criar_grafo(provider: str | None = None, modelo: str | None = None, temperatura: float = 0.4):
+def criar_grafo(
+    provider: str | None = None,
+    modelo: str | None = None,
+    temperatura: float = 0.4,
+    system_prompt: str | None = None,
+):
     llm = criar_llm(provider=provider, modelo=modelo, temperatura=temperatura)
     tools = [search_tool, weather_tool, vision_tool, terminal_tool, read_file_tool, list_files_tool]
+    prompt_base = system_prompt or SYSTEM_PROMPT
     
     def classify_intent(state: AgentState) -> AgentState:
         messages = state["messages"]
         user_msg = messages[-1].content if messages else ""
         
-        system_msg = SYSTEM_PROMPT + """
+        system_msg = prompt_base + """
 Classifique a intenção do usuário.
 Responda apenas com uma das opções: clima, web, vision, files, terminal ou general.
 """
@@ -92,7 +98,7 @@ Responda apenas com uma das opções: clima, web, vision, files, terminal ou gen
 
     def agent_node(state: AgentState):
         prompt = ChatPromptTemplate.from_messages([
-            ("system", SYSTEM_PROMPT),
+            ("system", prompt_base),
             MessagesPlaceholder(variable_name="messages"),
         ])
         llm_for_node = llm.bind_tools(tools)
@@ -102,7 +108,7 @@ Responda apenas com uma das opções: clima, web, vision, files, terminal ou gen
         
     def respond_node(state: AgentState):
         prompt = ChatPromptTemplate.from_messages([
-            ("system", SYSTEM_PROMPT),
+            ("system", prompt_base),
             MessagesPlaceholder(variable_name="messages"),
         ])
         chain = prompt | llm

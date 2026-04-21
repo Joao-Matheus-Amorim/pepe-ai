@@ -113,9 +113,24 @@ class PepeAgent:
         self.agente = agente or criar_agente()  # Mantido para compatibilidade legado se necessário
         self.session_id = session_id
         self.memory = PepeMemory()
+        self.profile = self.memory.profile
+        self.system_prompt = self._montar_system_prompt()
         self._ultimo_local: Optional[str] = None
         self._ultima_intencao: Optional[str] = INTENCAO_NENHUMA
-        self.pepe_graph = criar_grafo(provider=provider, modelo=modelo, temperatura=temperatura)
+        self.pepe_graph = criar_grafo(
+            provider=provider,
+            modelo=modelo,
+            temperatura=temperatura,
+            system_prompt=self.system_prompt,
+        )
+
+    def _montar_system_prompt(self) -> str:
+        base = SYSTEM_PROMPT
+        perfil_prompt_fn = getattr(self.profile, "resumo_para_prompt", None)
+        perfil_prompt = perfil_prompt_fn() if callable(perfil_prompt_fn) else ""
+        if perfil_prompt:
+            return f"{base}\n\n{perfil_prompt}"
+        return base
 
     def perguntar(self, pergunta: str) -> str:
         """Processa uma pergunta do usuário usando o grafo do LangGraph."""
