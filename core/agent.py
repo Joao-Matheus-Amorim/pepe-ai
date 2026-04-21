@@ -103,19 +103,19 @@ def invocar_agente(agente, pergunta: str, historico=None) -> str:
 
 
 from core.graph import criar_grafo
-from langchain_core.messages import HumanMessage
+from langchain_core.messages import HumanMessage, AIMessage
 
 class PepeAgent:
     """Classe principal que representa o Agente Pepê e suas capacidades."""
 
-    def __init__(self, agente=None, session_id: str = "pepe"):
+    def __init__(self, agente=None, session_id: str = "pepe", provider: str | None = None, modelo: str | None = None, temperatura: float = 0.4):
         """Inicializa o agente com memória e histórico de sessão."""
         self.agente = agente or criar_agente()  # Mantido para compatibilidade legado se necessário
         self.session_id = session_id
         self.memory = PepeMemory()
         self._ultimo_local: Optional[str] = None
         self._ultima_intencao: Optional[str] = INTENCAO_NENHUMA
-        self.pepe_graph = criar_grafo()
+        self.pepe_graph = criar_grafo(provider=provider, modelo=modelo, temperatura=temperatura)
 
     def perguntar(self, pergunta: str) -> str:
         """Processa uma pergunta do usuário usando o grafo do LangGraph."""
@@ -134,6 +134,16 @@ class PepeAgent:
             contexto = "\nLembretes importantes sobre o usuário: " + "; ".join(fatos)
             input_content = f"{contexto}\n\nPergunta: {pergunta_limpa}"
 
+        pergunta_lower = pergunta_limpa.lower()
+
+        # Busca web deve sair pelo motor de busca, não pela resposta generativa do agente.
+        if self._eh_consulta_web(pergunta_lower):
+            resposta_busca = ferramenta_busca(pergunta_limpa)
+            history.add_user_message(pergunta_limpa)
+            history.add_message(AIMessage(content=resposta_busca))
+            self._ultima_intencao = INTENCAO_WEB
+            return resposta_busca
+
         messages.append(HumanMessage(content=input_content))
 
         # 3. Executar o Grafo
@@ -151,7 +161,6 @@ class PepeAgent:
              history.add_user_message(input_content)
 
         # 5. Atualizar Memória de Longo Prazo se necessário
-        pergunta_lower = pergunta_limpa.lower()
         if "lembre-se" in pergunta_lower or "grave isso" in pergunta_lower:
             fato = pergunta_limpa.replace("lembre-se", "").replace("grave isso", "").strip()
             self.memory.adicionar_fato(fato)

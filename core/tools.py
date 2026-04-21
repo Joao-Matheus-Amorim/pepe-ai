@@ -1,3 +1,4 @@
+import os
 import re
 import requests
 import unicodedata
@@ -565,19 +566,47 @@ def _pegar_texto_resultado(r: dict) -> str:
     )
 
 
+def _formatar_resultados_ddgs(results: list[dict]) -> str:
+    return "\n".join(
+        f"{r.get('title', 'Sem título')}: {_pegar_texto_resultado(r)[:250]}..."
+        for r in results
+    )
+
+
+def _buscar_perplexity(query: str) -> str:
+    from core.perplexity_web import buscar_perplexity_web
+
+    return buscar_perplexity_web(query)
+
+
 def ferramenta_busca(query: str) -> str:
     query_limpa = (query or "").strip()
     if not query_limpa:
         return "Consulta vazia."
 
     try:
+        provider_busca = os.getenv("PEPE_SEARCH_PROVIDER", "perplexity").strip().lower()
+        if provider_busca == "perplexity":
+            try:
+                return _buscar_perplexity(query_limpa)
+            except Exception as erro:
+                mensagem = str(erro)
+                if "não autenticada" in mensagem.lower() or "expirou" in mensagem.lower():
+                    return (
+                        "Sessão do Perplexity ausente ou expirada. "
+                        "Execute `python -m core.perplexity_web login` uma vez e tente novamente."
+                    )
+                if os.getenv("PEPE_SEARCH_FALLBACK_DDGS", "true").strip().lower() in {"1", "true", "yes", "sim", "on"}:
+                    results = _buscar_ddgs(query_limpa, max_results=5)
+                    if not results:
+                        return f"Perplexity indisponível e nenhum resultado no fallback DDGS: {erro}"
+                    return _formatar_resultados_ddgs(results)
+                return f"Erro na busca Perplexity: {erro}"
+
         results = _buscar_ddgs(query_limpa, max_results=5)
         if not results:
             return "Nenhum resultado encontrado."
 
-        return "\n".join(
-            f"{r.get('title', 'Sem título')}: {_pegar_texto_resultado(r)[:250]}..."
-            for r in results
-        )
+        return _formatar_resultados_ddgs(results)
     except Exception as e:
         return f"Erro na busca: {e}"

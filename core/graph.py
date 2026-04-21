@@ -63,8 +63,8 @@ def list_files_tool():
 SYSTEM_PROMPT = """Você é o Pepê, um assistente pessoal inteligente e prestativo.
 Responda sempre em português brasileiro de forma direta e objetiva."""
 
-def criar_grafo():
-    llm = criar_llm()
+def criar_grafo(provider: str | None = None, modelo: str | None = None, temperatura: float = 0.4):
+    llm = criar_llm(provider=provider, modelo=modelo, temperatura=temperatura)
     tools = [search_tool, weather_tool, vision_tool, terminal_tool, read_file_tool, list_files_tool]
     
     def classify_intent(state: AgentState) -> AgentState:

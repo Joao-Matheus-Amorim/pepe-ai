@@ -8,7 +8,8 @@ Este repositório esta em fase de nucleo funcional expandido.
 
 Ja implementado:
 - Chat em terminal com contexto por sessao
-- Integracao com LLM local via Ollama
+- Integracao com LLM local via Ollama, Perplexity ou Anthropic
+- Busca web com DDGS ou Perplexity via navegador persistente
 - Memoria persistente de longo prazo (ChromaDB)
 - Roteamento para clima, busca web e LLM
 - Voz (entrada e saida)
@@ -77,6 +78,48 @@ PEPE_MODEL_PROVIDER=ollama
 PEPE_OLLAMA_MODEL=llama3.1
 ```
 
+Configuracao Claude/Anthropic:
+```env
+PEPE_MODEL_PROVIDER=anthropic
+PEPE_ANTHROPIC_MODEL=claude-opus-4-5
+ANTHROPIC_API_KEY=sua_chave_aqui
+```
+
+Configuracao de busca com Perplexity:
+```env
+PEPE_SEARCH_PROVIDER=perplexity
+PEPE_PERPLEXITY_PROFILE_DIR=./memory/perplexity-profile
+PEPE_PERPLEXITY_HEADLESS=false
+PEPE_PERPLEXITY_BROWSER_CHANNEL=chrome
+PEPE_PERPLEXITY_LOGIN_METHOD=manual
+```
+
+Login automatizado opcional:
+```env
+PEPE_PERPLEXITY_LOGIN_METHOD=email
+PEPE_PERPLEXITY_EMAIL=seu_email
+PEPE_PERPLEXITY_PASSWORD=sua_senha
+```
+
+Login manual persistente:
+```bash
+python -m core.perplexity_web login
+```
+
+No modo manual, o login abre o Chrome/Edge real com o mesmo perfil persistente.
+Faça o login na janela do navegador e depois rode a busca normalmente.
+
+Depois disso, a busca reaproveita a sessão salva automaticamente.
+
+Se o navegador abrir em loop de verificação, use `PEPE_PERPLEXITY_BROWSER_CHANNEL=chrome` e faça o login manualmente na janela do Chrome.
+
+Login Google automático:
+```env
+PEPE_PERPLEXITY_LOGIN_METHOD=google
+PEPE_PERPLEXITY_EMAIL=seu_gmail
+PEPE_PERPLEXITY_PASSWORD=sua_senha_do_google
+```
+
 ## Execucao
 
 ```bash
@@ -95,9 +138,35 @@ uvicorn api_main:app --reload
 python voice_main.py
 ```
 
+## Segurança (API)
+
+A API REST foi protegida com autenticação por API key. Veja [SECURITY.md](SECURITY.md) para detalhes completos.
+
+### Requisição com Autenticação
+
+```bash
+curl -X POST http://localhost:8000/chat \
+  -H "X-API-Key: sua-chave-segura-aqui" \
+  -H "Content-Type: application/json" \
+  -d '{"message": "Oi Pepê!", "session_id": "user123"}'
+```
+
+### Variáveis de Ambiente (API)
+
+```env
+# Obrigatório em produção - mude do padrão!
+PEPE_API_KEY=sua-chave-segura-aqui
+
+# Opcional
+PEPE_API_HOST=0.0.0.0
+PEPE_API_PORT=8000
+```
+
 ## Testes
 
 ```bash
+python -m pytest tests/ -v
+# ou
 python -m unittest discover -s tests -v
 ```
 

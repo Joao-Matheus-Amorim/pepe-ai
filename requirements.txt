@@ -16,6 +16,9 @@ SpeechRecognition>=3.10.0
 fastapi>=0.111.0
 uvicorn>=0.30.0
 
+# Browser Automation
+playwright>=1.40.0
+
 # Tools
 duckduckgo-search>=6.0.0
 requests>=2.31.0
@@ -23,6 +26,9 @@ python-dotenv>=1.0.0
 
 # Monitoring
 langsmith>=0.1.0
+
+# Code Quality
+ruff>=0.3.0
 
 # Utils
 rich>=13.0.0
