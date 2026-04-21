@@ -3,12 +3,13 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-SUPPORTED_PROVIDERS = {"ollama", "perplexity", "anthropic", "groq"}
+SUPPORTED_PROVIDERS = {"ollama", "perplexity", "anthropic", "groq", "openrouter"}
 PROVIDER_ALIASES = {
     "claude": "anthropic",
     "llama": "ollama",
     "mixtral": "groq",
     "groq": "groq",
+    "openrouter": "openrouter",
 }
 
 VALID_ANTHROPIC_MODELS = {
@@ -101,6 +102,30 @@ def _criar_cliente_groq(modelo: str, temperatura: float):
     )
 
 
+def _criar_cliente_openrouter(modelo: str, temperatura: float):
+    try:
+        from langchain_openai import ChatOpenAI
+    except ImportError as erro:
+        raise RuntimeError(
+            "Dependência ausente para OpenRouter. Instale 'langchain-openai'."
+        ) from erro
+
+    api_key = os.getenv("OPENROUTER_API_KEY")
+    if not api_key:
+        raise ValueError("A variável de ambiente OPENROUTER_API_KEY não foi definida.")
+
+    return ChatOpenAI(
+        model=modelo,
+        temperature=temperatura,
+        openai_api_key=api_key,
+        openai_api_base="https://openrouter.ai/api/v1",
+        default_headers={
+            "HTTP-Referer": "https://github.com/pepe-ai",
+            "X-Title": "Pepe AI",
+        },
+    )
+
+
 def criar_llm(provider: str | None = None, modelo: str | None = None, temperatura: float = 0.4):
     provider_final = _obter_provider(provider)
 
@@ -108,8 +133,12 @@ def criar_llm(provider: str | None = None, modelo: str | None = None, temperatur
         modelo_perplexity = (modelo or os.getenv("PEPE_PERPLEXITY_MODEL", "sonar-reasoning")).strip()
         return _criar_cliente_perplexity(modelo_perplexity, temperatura)
 
+    if provider_final == "openrouter":
+        modelo_openrouter = (modelo or os.getenv("PEPE_OPENROUTER_MODEL", "meta-llama/llama-3.3-70b-instruct:free")).strip()
+        return _criar_cliente_openrouter(modelo_openrouter, temperatura)
+
     if provider_final == "groq":
-        modelo_groq = (modelo or os.getenv("PEPE_GROQ_MODEL", "llama-3.1-70b-versatile")).strip()
+        modelo_groq = (modelo or os.getenv("PEPE_GROQ_MODEL", "llama-3.3-70b-versatile")).strip()
         return _criar_cliente_groq(modelo_groq, temperatura)
 
     if provider_final == "anthropic":

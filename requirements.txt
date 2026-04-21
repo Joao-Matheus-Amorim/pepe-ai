@@ -2,6 +2,7 @@
 langchain>=0.3.0
 langgraph>=0.2.0
 langchain-ollama>=0.2.0
+langchain-anthropic>=0.3.0
 
 # Memory
 chromadb>=0.5.0
