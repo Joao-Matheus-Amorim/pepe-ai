@@ -11,6 +11,7 @@ Ja implementado:
 - Integracao com LLM local via Ollama, Perplexity ou Anthropic
 - Busca web com DDGS ou Perplexity via navegador persistente
 - Memoria persistente de longo prazo (ChromaDB)
+- Perfil do usuario persistente para preferencias, habitos e projetos ativos
 - Roteamento para clima, busca web e LLM
 - Voz (entrada e saida)
 - Visao local (captura de tela via Ollama Vision)
@@ -37,6 +38,7 @@ Arquivos principais:
 - `voice_main.py`: entrada modo voz
 - `core/agent.py`: logica do agente e historico
 - `core/llm.py`: selecao de provider e criacao do cliente de LLM
+- `core/memory.py`: memoria de longo prazo e perfil do usuario
 - `core/tools.py`: ferramentas de busca e clima
 - `core/tools_execute.py`: execucao de comandos
 - `core/tools_filesystem.py`: leitura e listagem de arquivos

@@ -123,16 +123,23 @@ class PepeAgent:
         if not pergunta_limpa:
             raise ValueError("A pergunta não pode estar vazia.")
 
+        self.memory.registrar_perfil(pergunta_limpa)
+
         # 1. Recuperar Histórico
         history = get_session_history(self.session_id)
         messages = list(history.messages)
 
-        # 2. Memória de Longo Prazo (Injetar como contexto se houver fatos relevantes)
+        # 2. Memória de Longo Prazo e Perfil do usuário
         fatos = self.memory.buscar_fatos(pergunta_limpa)
         input_content = pergunta_limpa
+        perfil = self.memory.resumir_perfil()
+        if perfil:
+            input_content = f"Perfil conhecido do usuário:\n{perfil}\n\n{input_content}"
         if fatos:
             contexto = "\nLembretes importantes sobre o usuário: " + "; ".join(fatos)
             input_content = f"{contexto}\n\nPergunta: {pergunta_limpa}"
+            if perfil:
+                input_content = f"Perfil conhecido do usuário:\n{perfil}\n{input_content}"
 
         pergunta_lower = pergunta_limpa.lower()
 

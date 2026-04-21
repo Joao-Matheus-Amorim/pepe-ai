@@ -1,7 +1,11 @@
 import unittest
+from pathlib import Path
+from tempfile import TemporaryDirectory
+from types import SimpleNamespace
 from unittest.mock import patch
 
 from core.agent import PepeAgent, invocar_agente
+from core.memory import PepeMemory
 
 
 class _Resposta:
@@ -20,6 +24,30 @@ class _AgenteFake:
         self.ultima_entrada = entrada
         self.ultima_config = config
         return _Resposta(f"resposta-{self.chamadas}")
+
+
+class _GrafoFake:
+    def __init__(self):
+        self.ultima_entrada = None
+        self.ultima_config = None
+
+    def invoke(self, entrada, config=None):
+        self.ultima_entrada = entrada
+        self.ultima_config = config
+        return {"messages": [SimpleNamespace(content="resposta-fake")]}
+
+
+class _CollectionFake:
+    def add(self, *args, **kwargs):
+        return None
+
+    def query(self, *args, **kwargs):
+        return {"documents": [[]]}
+
+
+class _ClientFake:
+    def get_or_create_collection(self, name):
+        return _CollectionFake()
 
 
 class AgentCoreTests(unittest.TestCase):
@@ -72,6 +100,56 @@ class AgentCoreTests(unittest.TestCase):
         entrada = agente_fake.ultima_entrada["input"]
         self.assertIn("informações da web", entrada)
         self.assertIn("Fonte X", entrada)
+
+    def test_pepe_agent_inclui_perfil_no_contexto(self):
+        class _MemoriaFake:
+            def __init__(self):
+                self.perguntas = []
+
+            def registrar_perfil(self, texto):
+                self.perguntas.append(texto)
+                return False
+
+            def buscar_fatos(self, consulta, n_resultados=3):
+                return []
+
+            def resumir_perfil(self):
+                return "Nome: João Matheus\nPreferências: prefere Python"
+
+        memoria_fake = _MemoriaFake()
+        grafo_fake = _GrafoFake()
+
+        with patch("core.agent.PepeMemory", return_value=memoria_fake), patch(
+            "core.agent.criar_grafo", return_value=grafo_fake
+        ):
+            pepe = PepeAgent()
+            resposta = pepe.perguntar("Prefiro Python")
+
+        entrada = grafo_fake.ultima_entrada["messages"][-1].content
+        self.assertEqual("resposta-fake", resposta)
+        self.assertIn("Perfil conhecido do usuário", entrada)
+        self.assertIn("João Matheus", entrada)
+        self.assertEqual(["Prefiro Python"], memoria_fake.perguntas)
+
+    def test_pepe_memory_registra_e_carrega_perfil(self):
+        with TemporaryDirectory() as temp_dir:
+            with patch("core.memory.chromadb.PersistentClient", return_value=_ClientFake()):
+                memoria = PepeMemory(persist_directory=temp_dir)
+                atualizado = memoria.registrar_perfil(
+                    "Me chamo João Matheus. Prefiro trabalhar com Python. Costumo estudar à noite. Estou desenvolvendo um app de finanças."
+                )
+
+                perfil_path = Path(temp_dir) / "pepe_user_profile.json"
+                self.assertTrue(atualizado)
+                self.assertTrue(perfil_path.exists())
+
+                reaberta = PepeMemory(persist_directory=temp_dir)
+                resumo = reaberta.resumir_perfil()
+
+            self.assertIn("Nome: João Matheus", resumo)
+            self.assertIn("prefere trabalhar com Python", resumo)
+            self.assertIn("costuma estudar à noite", resumo)
+            self.assertIn("projeto ativo: app de finanças", resumo)
 
     @patch("core.agent.consulta_clima")
     def test_pepe_agent_clima_mantem_contexto_com_referencia(self, mock_consulta):
