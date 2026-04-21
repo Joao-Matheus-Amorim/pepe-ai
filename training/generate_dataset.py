@@ -610,14 +610,14 @@ def main():
     for filename, entries in datasets.items():
         erros = validate_dataset(entries)
         if erros:
-            print(f"\n⚠️  Erros em {filename}:")
+            print(f"\n[WARN] Erros em {filename}:")
             for e in erros:
                 print(f"   {e}")
 
         count = save_jsonl(entries, filename)
         total += count
         all_entries.extend(entries)
-        print(f"✓  {filename}: {count} exemplos")
+        print(f"[OK] {filename}: {count} exemplos")
 
     random.shuffle(all_entries)
 
