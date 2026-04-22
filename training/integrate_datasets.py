@@ -22,15 +22,60 @@ TRAIN_OUT = TRAINING_DATASETS_DIR / "pepe_train.jsonl"
 VAL_OUT = TRAINING_DATASETS_DIR / "pepe_val.jsonl"
 
 SYSTEM_PEPE = (
-    "Voce e Pepe, um agente de IA pessoal inteligente, direto e eficiente. "
-    "Voce tem acesso a ferramentas de busca web, clima, visao de tela, execucao de comandos, "
-    "leitura de arquivos e memoria persistente. "
+    "Você é Pepê, um agente de IA pessoal inteligente, direto e eficiente. "
+    "Você tem acesso a ferramentas de busca web, clima, visão de tela, execução de comandos, "
+    "leitura de arquivos e memória persistente. "
     "Quando receber uma pergunta, classifique a intencao e use a ferramenta correta. "
     "Responda sempre em portugues do Brasil, de forma clara e concisa."
 )
 
 LAYER_FILE_PREFIXES = ("01_", "02_", "03_", "04_", "05_", "06_")
 SPLIT_SEED = 42
+
+
+def normalize_system_prompt(entry: dict) -> dict:
+    messages = entry.get("messages")
+    if not isinstance(messages, list):
+        return entry
+
+    normalized_messages: list[dict] = []
+    system_replaced = False
+    for msg in messages:
+        if not isinstance(msg, dict):
+            normalized_messages.append(msg)
+            continue
+
+        normalized_msg = dict(msg)
+        if normalized_msg.get("role") == "system":
+            normalized_msg["content"] = SYSTEM_PEPE
+            system_replaced = True
+        normalized_messages.append(normalized_msg)
+
+    if not system_replaced:
+        normalized_messages.insert(0, {"role": "system", "content": SYSTEM_PEPE})
+
+    return {**entry, "messages": normalized_messages}
+
+
+def user_signature(entry: dict) -> str | None:
+    messages = entry.get("messages")
+    if not isinstance(messages, list):
+        return None
+
+    user_parts: list[str] = []
+    for msg in messages:
+        if not isinstance(msg, dict) or msg.get("role") != "user":
+            continue
+        content = msg.get("content")
+        if content is None:
+            continue
+        text = str(content).strip()
+        if text:
+            user_parts.append(text)
+
+    if not user_parts:
+        return None
+    return "\n".join(user_parts).casefold()
 
 
 def run_generator() -> None:
@@ -107,19 +152,29 @@ def convert_raw_dataset(path: Path) -> list[dict]:
                 ]
             }
         )
-    return entries
+    return [normalize_system_prompt(entry) for entry in entries]
 
 
 def dedupe_entries(entries: list[dict]) -> tuple[list[dict], int]:
-    seen: set[str] = set()
+    seen_user_signatures: set[str] = set()
+    seen_fallback_hashes: set[str] = set()
     unique: list[dict] = []
     removed = 0
     for entry in entries:
+        signature = user_signature(entry)
+        if signature is not None:
+            if signature in seen_user_signatures:
+                removed += 1
+                continue
+            seen_user_signatures.add(signature)
+            unique.append(entry)
+            continue
+
         h = canonical_md5(entry)
-        if h in seen:
+        if h in seen_fallback_hashes:
             removed += 1
             continue
-        seen.add(h)
+        seen_fallback_hashes.add(h)
         unique.append(entry)
     return unique, removed
 
@@ -200,7 +255,7 @@ def integrate_once() -> None:
 
     run_generator()
 
-    layer_entries = load_layer_jsonls()
+    layer_entries = [normalize_system_prompt(entry) for entry in load_layer_jsonls()]
     converted_entries = convert_raw_dataset(RAW_JSON_PATH)
     merged_entries = layer_entries + converted_entries
 

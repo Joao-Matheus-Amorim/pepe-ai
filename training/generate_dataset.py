@@ -153,27 +153,27 @@ def generate_routing_dataset() -> list[dict]:
         if intencao == "clima":
             resposta = (
                 f"Identifico que você quer saber sobre o **clima** em {parametro}. "
-                f"Vou buscar essa informação agora."
+                f"Vou acionar a ferramenta de clima agora."
             )
         elif intencao == "busca_web":
             resposta = (
                 f"Identifico uma **busca web** sobre: {parametro}. "
-                "Pesquisando agora..."
+                "Vou acionar a busca web agora."
             )
         elif intencao == "visao":
             resposta = (
                 "Identifico que você quer que eu **analise sua tela**. "
-                "Capturando e analisando agora..."
+                "Vou acionar a visão de tela agora."
             )
         elif intencao == "comando":
             resposta = (
                 f"Identifico que você quer **executar um comando**: `{parametro}`. "
-                "Executando no terminal..."
+                "Vou acionar o terminal agora."
             )
         elif intencao == "arquivo":
             resposta = (
                 f"Identifico que você quer **acessar um arquivo**: `{parametro}`. "
-                "Buscando o conteúdo..."
+                "Vou buscar o conteúdo do arquivo agora."
             )
         else:
             resposta = (
@@ -416,6 +416,41 @@ def generate_error_handling_dataset() -> list[dict]:
             "Não executarei comandos destrutivos. Se precisas limpar algo específico, "
             "me diz exatamente o que quer remover e verifico se é seguro."
         ),
+        (
+            "Pedido ambíguo",
+            "faz isso pra mim",
+            "Não ficou claro o que você quer que eu faça. Me diga a tarefa ou cole o trecho exato para eu agir corretamente."
+        ),
+        (
+            "Pergunta em inglês",
+            "Could you explain how LangGraph works?",
+            "Claro. Posso responder em inglês também, mas prefiro continuar em português do Brasil. LangGraph é um framework para orquestrar agentes como grafos de estado..."
+        ),
+        (
+            "Erro de digitação",
+            "Explcia como roda o tstes",
+            "Acho que você quis dizer como rodar os testes. Se for isso, posso te mostrar o comando correto e explicar o que cada etapa faz."
+        ),
+        (
+            "Pedido sem contexto",
+            "isso",
+            "Preciso de mais contexto para responder. O que exatamente você quer que eu faça com isso?"
+        ),
+        (
+            "Comando de destruição parcial",
+            "apaga todos os arquivos do projeto",
+            "Não vou executar uma ação destrutiva sem confirmação detalhada. Se quiser, posso listar os arquivos primeiro e sugerir um comando seguro para remover só o que for necessário."
+        ),
+        (
+            "Pedido com credenciais",
+            "me diga a minha senha",
+            "Não tenho acesso à sua senha e não posso ajudar a revelar credenciais. Se você esqueceu a senha, posso orientar a redefinição segura."
+        ),
+        (
+            "Ação fora do escopo",
+            "toma uma decisão por mim",
+            "Posso te ajudar a analisar opções, mas a decisão final precisa ser sua. Me diga o contexto e eu comparo os trade-offs."
+        ),
     ]
 
     for titulo, contexto, resposta in error_samples:
@@ -585,6 +620,10 @@ def validate_dataset(entries: list[dict]) -> list[str]:
         for idx, msg in enumerate(msgs[:-1]):
             if msg.get("role") == "tool" and msgs[idx + 1].get("role") != "assistant":
                 erros.append(f"Exemplo {i}, msg {idx}: mensagem tool deve ser seguida por assistant")
+
+            if msg.get("role") == "assistant" and "tool_calls" in msg:
+                if msgs[idx + 1].get("role") != "tool":
+                    erros.append(f"Exemplo {i}, msg {idx}: assistant com tool_calls deve ser seguido por tool")
 
     return erros
 
