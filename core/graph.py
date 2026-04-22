@@ -1,5 +1,17 @@
+"""Grafo LangGraph do Pepê com router de intenção integrado.
+
+Fluxo:
+  classify → agent (com tools) → tools → agent → respond
+         ↘ respond (general direto)
+
+O nó 'classify' agora usa core.router para detectar se a tarefa
+é CODE, SEARCH ou GENERAL, e define o modelo especializado correto.
+"""
+
+from __future__ import annotations
+
 import os
-from typing import Annotated, TypedDict, Union, List, Optional
+from typing import Annotated, TypedDict, List, Optional
 from enum import Enum
 
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage, SystemMessage
@@ -14,6 +26,8 @@ from core.tools import ferramenta_busca, consulta_clima
 from core.tools_vision import capturar_e_analisar_tela
 from core.tools_execute import executar_comando
 from core.tools_filesystem import ler_arquivo, listar_arquivos
+from core.router import classificar_intencao, Intencao
+
 
 class Intent(str, Enum):
     CLIMA = "clima"
@@ -21,7 +35,9 @@ class Intent(str, Enum):
     VISION = "vision"
     FILES = "files"
     TERMINAL = "terminal"
+    CODE = "code"
     GENERAL = "general"
+
 
 class AgentState(TypedDict):
     messages: Annotated[List[BaseMessage], add_messages]
@@ -33,33 +49,40 @@ AUTO_EVALUATION_PROMPT = (
     "Você é o revisor de respostas do Pepê.\n"
     "Avalie a resposta atual com foco em: utilidade, clareza, objetividade e aderência à pergunta.\n"
     "Se a resposta já estiver boa, retorne exatamente <ok>.\n"
-    "Se a resposta estiver ruim, genérica, incompleta, contraditória ou excessivamente longa, retorne somente uma versão final reescrita, em português brasileiro, sem explicações extras."
+    "Se a resposta estiver ruim, genérica, incompleta, contraditória ou excessivamente longa, "
+    "retorne somente uma versão final reescrita, em português brasileiro, sem explicações extras."
 )
+
 
 @tool
 def search_tool(query: str):
     """Pesquisa informações na web."""
     return ferramenta_busca(query)
 
+
 @tool
 def weather_tool(location: str):
     """Consulta o clima para uma localização."""
     return consulta_clima(location)
+
 
 @tool
 def vision_tool(query: str):
     """Captura e analisa a tela."""
     return capturar_e_analisar_tela(query)
 
+
 @tool
 def terminal_tool(command: str):
     """Executa comandos no terminal."""
     return executar_comando(command)
 
+
 @tool
 def read_file_tool(path: str):
     """Lê um arquivo."""
     return ler_arquivo(path)
+
 
 @tool
 def list_files_tool():
@@ -74,7 +97,7 @@ def _texto_da_resposta(resposta) -> str:
 
 
 def revisar_resposta(llm, prompt_base: str, pergunta: str, resposta: str) -> str:
-    """Executa uma autoavaliação e retorna a resposta original ou uma versão melhorada."""
+    """Executa autoavaliação e retorna a resposta original ou melhorada."""
     resposta_limpa = (resposta or "").strip()
     if not resposta_limpa:
         return resposta_limpa
@@ -101,8 +124,10 @@ def revisar_resposta(llm, prompt_base: str, pergunta: str, resposta: str) -> str
         return resposta_limpa
     return texto_revisado
 
+
 SYSTEM_PROMPT = """Você é o Pepê, um assistente pessoal inteligente e prestativo.
 Responda sempre em português brasileiro de forma direta e objetiva."""
+
 
 def criar_grafo(
     provider: str | None = None,
@@ -110,34 +135,65 @@ def criar_grafo(
     temperatura: float = 0.4,
     system_prompt: str | None = None,
 ):
+    """Cria o grafo LangGraph com router de intenção integrado."""
     llm = criar_llm(provider=provider, modelo=modelo, temperatura=temperatura)
     tools = [search_tool, weather_tool, vision_tool, terminal_tool, read_file_tool, list_files_tool]
     prompt_base = system_prompt or SYSTEM_PROMPT
-    
+
     def classify_intent(state: AgentState) -> AgentState:
+        """Classifica a intenção usando core.router (regex + LLM fallback)."""
         messages = state["messages"]
-        user_msg = messages[-1].content if messages else ""
-        
-        system_msg = prompt_base + """
-Classifique a intenção do usuário.
-Responda apenas com uma das opções: clima, web, vision, files, terminal ou general.
-"""
-        
-        prompt = ChatPromptTemplate.from_messages([
-            ("system", system_msg),
-            ("human", f"{user_msg}"),
-        ])
-        
+        user_msg = ""
+        for msg in reversed(messages):
+            if isinstance(msg, HumanMessage):
+                user_msg = str(msg.content)
+                break
+
+        if not user_msg:
+            return {"intent": Intent.GENERAL, "context": {}}
+
         try:
-            chain = prompt | llm.with_structured_output(Intent)
-            result = chain.invoke({})
+            intencao_router = classificar_intencao(user_msg)
+            # Mapeia Intencao do router para Intent do grafo
+            mapa = {
+                Intencao.CODE: Intent.CODE,
+                Intencao.SEARCH: Intent.WEB,
+                Intencao.GENERAL: Intent.GENERAL,
+            }
+            intent = mapa.get(intencao_router, Intent.GENERAL)
         except Exception:
-            result = Intent.GENERAL
-        
-        intent = result if isinstance(result, Intent) else result.get("intent", Intent.GENERAL)
+            intent = Intent.GENERAL
+
         return {"intent": intent, "context": {}}
 
+    def route_to_specialist(state: AgentState) -> str:
+        """Decide qual nó executar com base na intenção."""
+        intent = state.get("intent", Intent.GENERAL)
+        if intent in (Intent.WEB, Intent.CLIMA, Intent.VISION, Intent.FILES, Intent.TERMINAL, Intent.CODE):
+            return "agent"
+        return "respond"
+
     def agent_node(state: AgentState):
+        """Nó de agente com tools — para intenções que precisam de ferramentas ou especialistas."""
+        intent = state.get("intent", Intent.GENERAL)
+        messages = state["messages"]
+
+        # Para CODE, usa o CoderAgent diretamente
+        if intent == Intent.CODE:
+            user_msg = ""
+            for msg in reversed(messages):
+                if isinstance(msg, HumanMessage):
+                    user_msg = str(msg.content)
+                    break
+            try:
+                from core.agents.coder_agent import CoderAgent
+                coder = CoderAgent()
+                resposta_codigo = coder.responder(user_msg, list(messages[:-1]))
+                return {"messages": [AIMessage(content=resposta_codigo)]}
+            except Exception as erro:
+                # Fallback para o agente padrão com tools
+                pass
+
         prompt = ChatPromptTemplate.from_messages([
             ("system", prompt_base),
             MessagesPlaceholder(variable_name="messages"),
@@ -146,15 +202,20 @@ Responda apenas com uma das opções: clima, web, vision, files, terminal ou gen
         chain = prompt | llm_for_node
         response = chain.invoke(state)
         return {"messages": [response]}
-        
+
     def respond_node(state: AgentState):
+        """Nó de resposta direta — para conversas gerais."""
         prompt = ChatPromptTemplate.from_messages([
             ("system", prompt_base),
             MessagesPlaceholder(variable_name="messages"),
         ])
         chain = prompt | llm
         response = chain.invoke({"messages": state["messages"]})
-        pergunta = state["messages"][-1].content if state["messages"] else ""
+        pergunta = ""
+        for msg in reversed(state["messages"]):
+            if isinstance(msg, HumanMessage):
+                pergunta = str(msg.content)
+                break
         resposta_final = revisar_resposta(llm, prompt_base, pergunta, _texto_da_resposta(response))
         return {"messages": [AIMessage(content=resposta_final)]}
 
@@ -169,7 +230,7 @@ Responda apenas com uma das opções: clima, web, vision, files, terminal ou gen
 
     workflow.add_conditional_edges(
         "classify",
-        lambda state: "agent" if state.get("intent") not in [None, Intent.GENERAL] else "respond",
+        route_to_specialist,
         {
             "agent": "agent",
             "respond": "respond",
