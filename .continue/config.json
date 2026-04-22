@@ -1,0 +1,13 @@
+{
+  "models": [],
+  "mcpServers": [
+    {
+      "name": "pepe-ai",
+      "command": "python",
+      "args": ["D:/pepe-ai/mcp_server.py"],
+      "env": {
+        "PEPE_ROOT": "D:/pepe-ai"
+      }
+    }
+  ]
+}
